@@ -1,0 +1,32 @@
+{
+  "rules": {
+    "players": {
+      "$playerId": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "teams": {
+      "$teamCode": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "discovered_items": {
+      "$roomId": {
+        "$itemId": {
+          ".read": true,
+          ".write": "!data.exists()"
+        }
+      }
+    },
+    "room_presence": {
+      ".read": true,
+      ".write": true
+    },
+    "battles": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}

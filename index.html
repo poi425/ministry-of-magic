@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>마법부 청사 — 조사 시작</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-seal">⚜️</div>
+    <h1 class="login-title">마법부 청사</h1>
+    <p class="login-subtitle">MINISTRY OF MAGIC — 비밀 조사 임무</p>
+
+    <div class="divider"></div>
+
+    <!-- 이름 입력 -->
+    <div class="form-group">
+      <label class="form-label" for="playerName">마법사 이름</label>
+      <input class="form-input" type="text" id="playerName" placeholder="이름을 입력하세요" maxlength="20">
+    </div>
+
+    <!-- 진영 선택 -->
+    <div class="form-group">
+      <label class="form-label">진영 선택</label>
+      <div class="faction-select">
+        <div class="faction-option order-option" id="factionOrder" onclick="selectFaction('order')">
+          <span class="faction-icon">🦅</span>
+          <span class="faction-name">불사조 기사단</span>
+          <p class="faction-desc">어둠에 맞서 싸우는 자들</p>
+        </div>
+        <div class="faction-option death-option" id="factionDeath" onclick="selectFaction('death')">
+          <span class="faction-icon">💀</span>
+          <span class="faction-name">죽음을 먹는 자</span>
+          <p class="faction-desc">볼드모트의 충성스러운 추종자</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 팀 코드 -->
+    <div class="form-group">
+      <label class="form-label">팀 코드 (같은 팀끼리 동일 코드 입력)</label>
+      <div style="display:flex; gap:8px;">
+        <input class="form-input" type="text" id="teamCode" placeholder="팀 코드 입력 또는 생성" maxlength="8" style="text-transform:uppercase;">
+        <button class="btn btn-ghost btn-sm" onclick="generateTeamCode()" style="white-space:nowrap;">자동 생성</button>
+      </div>
+      <p style="font-size:0.75rem; color:var(--silver-dim); margin-top:4px;">같은 팀원은 동일한 코드를 입력하세요</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">팀 이름 (선택)</label>
+      <input class="form-input" type="text" id="teamName" placeholder="팀 이름 (없으면 코드가 팀명이 됨)" maxlength="20">
+    </div>
+
+    <!-- 개인조사 옵션 -->
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:var(--gap-lg);">
+      <input type="checkbox" id="soloMode" style="accent-color: var(--gold); width:16px; height:16px;">
+      <label for="soloMode" style="font-size:0.85rem; color:var(--parchment-dim); cursor:pointer;">개인 조사 모드 (혼자 탐색)</label>
+    </div>
+
+    <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="startGame()">
+      🚪 마법부에 입장
+    </button>
+
+    <div id="errorMsg" style="color:#ff8888; font-size:0.8rem; text-align:center; margin-top:var(--gap-sm); display:none;"></div>
+
+    <div class="divider"></div>
+    <p style="font-size:0.75rem; color:var(--silver-dim); text-align:center; line-height:1.6;">
+      진영이 다른 팀과 같은 방에서 만나면 전투가 발생할 수 있습니다.<br>
+      발견한 열쇠와 단서는 전 서버에서 공유됩니다.
+    </p>
+  </div>
+</div>
+
+<div id="toastContainer" class="toast-container"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script>
+let selectedFaction = null;
+
+function selectFaction(faction) {
+  selectedFaction = faction;
+  document.getElementById('factionOrder').classList.toggle('selected', faction === 'order');
+  document.getElementById('factionDeath').classList.toggle('selected', faction === 'death');
+}
+
+function generateTeamCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  document.getElementById('teamCode').value = code;
+}
+
+async function startGame() {
+  const name = document.getElementById('playerName').value.trim();
+  const teamCode = document.getElementById('teamCode').value.trim().toUpperCase();
+  const teamName = document.getElementById('teamName').value.trim() || teamCode;
+  const soloMode = document.getElementById('soloMode').checked;
+  const errEl = document.getElementById('errorMsg');
+
+  if (!name) { showError('이름을 입력해주세요.'); return; }
+  if (!selectedFaction) { showError('진영을 선택해주세요.'); return; }
+  if (!teamCode && !soloMode) { showError('팀 코드를 입력하거나 자동 생성해주세요.'); return; }
+
+  const finalCode = soloMode ? 'solo_' + Date.now() : teamCode;
+
+  const playerId = 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  const player = { id: playerId, name, faction: selectedFaction, teamCode: finalCode, teamName, soloMode };
+  localStorage.setItem('mof_player', JSON.stringify(player));
+
+  // Firebase에 플레이어 등록
+  try {
+    await db.ref(`players/${playerId}`).set({
+      ...player,
+      currentRoom: 'atrium',
+      online: true,
+      joinedAt: Date.now()
+    });
+
+    // 팀 생성 또는 참가
+    const teamRef = db.ref(`teams/${finalCode}`);
+    const snap = await teamRef.once('value');
+    if (!snap.exists()) {
+      await teamRef.set({
+        code: finalCode,
+        name: teamName,
+        faction: selectedFaction,
+        currentRoom: 'atrium',
+        members: { [playerId]: { name, id: playerId, online: true } },
+        inventory: {},
+        clues: {}
+      });
+    } else {
+      await teamRef.child(`members/${playerId}`).set({ name, id: playerId, online: true });
+    }
+
+    // presence 설정 (오프라인 감지)
+    const connRef = db.ref('.info/connected');
+    connRef.on('value', (snap) => {
+      if (snap.val()) {
+        db.ref(`players/${playerId}/online`).onDisconnect().set(false);
+        db.ref(`teams/${finalCode}/members/${playerId}/online`).onDisconnect().set(false);
+      }
+    });
+
+    window.location.href = `lobby.html`;
+  } catch (e) {
+    console.error(e);
+    showError('접속 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 3000);
+}
+
+// URL에 팀코드 파라미터가 있으면 자동 입력
+const urlParams = new URLSearchParams(window.location.search);
+const urlTeamCode = urlParams.get('team');
+if (urlTeamCode) {
+  document.getElementById('teamCode').value = urlTeamCode.toUpperCase();
+}
+</script>
+</body>
+</html>

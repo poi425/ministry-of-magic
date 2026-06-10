@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>마법부 청사 — 탐색</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-wrapper">
+
+<!-- 헤더 -->
+<header class="site-header">
+  <div class="container">
+    <div class="header-inner">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:1.4rem;">⚜️</span>
+        <span class="site-title">마법부 청사</span>
+      </div>
+      <div id="playerBadge" class="player-badge">
+        <span id="playerFactionTag" class="faction-tag"></span>
+        <span id="playerNameDisplay" style="font-size:0.9rem;"></span>
+        <span id="teamCodeDisplay" style="font-size:0.75rem; color:var(--silver-dim);"></span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="copyTeamLink()">🔗 팀 초대</button>
+        <button class="btn btn-ghost btn-sm" onclick="showInventory()">🎒 인벤토리</button>
+        <button class="btn btn-ghost btn-sm" onclick="logout()">퇴장</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- 메인 게임 레이아웃 -->
+<div class="game-layout">
+  <!-- 메인 탐색 영역 -->
+  <main class="main-area">
+
+    <!-- 이동 투표 배너 (팀원이 이동 요청했을 때) -->
+    <div id="moveVoteBanner" class="move-vote-banner hidden" style="margin-bottom:var(--gap-lg);">
+      <p><strong id="moveVoteRequestor"></strong>이(가) <strong id="moveVoteTarget"></strong>(으)로 이동을 제안했습니다.</p>
+      <p style="font-size:0.8rem;color:var(--silver-dim);margin-bottom:8px;">팀 전체가 동의해야 이동할 수 있습니다.</p>
+      <div class="vote-buttons">
+        <button class="btn btn-success btn-sm" onclick="voteMove(true)">✓ 동의</button>
+        <button class="btn btn-danger btn-sm" onclick="voteMove(false)">✗ 거부</button>
+      </div>
+      <div id="voteStatus" style="font-size:0.75rem;color:var(--silver-dim);margin-top:8px;"></div>
+    </div>
+
+    <!-- 현재 방 뷰 -->
+    <div id="currentRoomView" class="current-room-view">
+      <h2 id="roomName" class="room-name" style="font-size:1.8rem;margin-bottom:var(--gap-sm);"></h2>
+      <div id="roomFlavor" class="room-flavor"></div>
+      <div id="roomScenario" class="scenario-text"></div>
+
+      <!-- 아이템 -->
+      <div class="items-section">
+        <h3>🔍 발견 가능한 물건</h3>
+        <div id="itemsGrid" class="items-grid"></div>
+      </div>
+
+      <!-- 단서 -->
+      <div class="clues-section">
+        <h3 style="font-family:var(--font-display);font-size:0.8rem;letter-spacing:0.2em;color:var(--silver-dim);text-transform:uppercase;margin-bottom:12px;">📜 관찰 가능한 단서</h3>
+        <div id="cluesList"></div>
+      </div>
+
+      <!-- 이동 가능한 방 -->
+      <div class="connections-section" style="margin-top:var(--gap-lg);">
+        <h3>🚪 이동 가능한 공간</h3>
+        <div id="roomConnections" class="room-connections"></div>
+      </div>
+    </div>
+
+    <!-- 방 탐색 내역 -->
+    <div>
+      <h3 style="font-family:var(--font-display);font-size:0.8rem;letter-spacing:0.2em;color:var(--silver-dim);text-transform:uppercase;margin-bottom:var(--gap-md);">📋 조사 기록</h3>
+      <div id="investigationLog" style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;"></div>
+    </div>
+  </main>
+
+  <!-- 사이드바 -->
+  <aside class="sidebar">
+    <!-- 팀 정보 -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">팀 현황</div>
+      <div class="team-info-header">
+        <span id="sidebarFactionTag" class="faction-tag"></span>
+        <span id="sidebarTeamName" class="team-name-display"></span>
+      </div>
+      <div id="teamMembersList"></div>
+    </div>
+
+    <!-- 현재 위치 -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">현재 위치</div>
+      <div id="currentRoomMini" style="font-family:var(--font-display);font-size:0.9rem;color:var(--gold);"></div>
+    </div>
+
+    <!-- 팀 수집 아이템 -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">수집 아이템 <span id="invCount" style="color:var(--gold);">0</span></div>
+      <div id="sidebarInventory" class="inventory-list" style="max-height:120px;overflow-y:auto;"></div>
+    </div>
+
+    <!-- 채팅 -->
+    <div class="chat-section sidebar-section" style="border-bottom:none;flex:1;min-height:0;">
+      <div class="sidebar-title">팀 채팅</div>
+      <div id="chatMessages" class="chat-messages"></div>
+      <div class="chat-input-area">
+        <input class="chat-input" id="chatInput" type="text" placeholder="메시지 입력..." maxlength="200" onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="btn btn-ghost btn-sm" onclick="sendChat()">전송</button>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- ========== 모달들 ========== -->
+
+<!-- 인벤토리 모달 -->
+<div id="inventoryModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-title">🎒 팀 인벤토리</div>
+    <div id="inventoryModalContent" class="modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('inventoryModal').classList.add('hidden')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 아이템 발견 모달 -->
+<div id="itemFoundModal" class="modal-overlay hidden">
+  <div class="modal" style="text-align:center;">
+    <div style="font-size:3rem;margin-bottom:12px;" id="itemFoundEmoji">✨</div>
+    <div class="modal-title" id="itemFoundTitle">아이템 발견!</div>
+    <div class="modal-body">
+      <p id="itemFoundName" style="color:var(--gold);font-family:var(--font-display);font-size:1.1rem;margin-bottom:8px;"></p>
+      <p id="itemFoundDesc" style="color:var(--parchment-dim);font-size:0.9rem;"></p>
+      <p id="itemFoundNote" style="color:var(--silver-dim);font-size:0.8rem;margin-top:12px;font-style:italic;"></p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="document.getElementById('itemFoundModal').classList.add('hidden')">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 전투 제안 모달 -->
+<div id="battleProposalModal" class="modal-overlay hidden">
+  <div class="modal" style="text-align:center;">
+    <div style="font-size:2.5rem;margin-bottom:12px;">⚠️</div>
+    <div class="modal-title" style="color:#ff8888;">적대 세력 발견!</div>
+    <div class="modal-body">
+      <p id="enemyTeamName" style="font-family:var(--font-display);font-size:1.1rem;color:var(--gold);margin-bottom:12px;"></p>
+      <p style="color:var(--parchment-dim);margin-bottom:16px;">같은 방에서 적대 세력을 만났습니다.<br>어떻게 하시겠습니까?</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="padding:12px;background:rgba(139,0,0,0.2);border:1px solid var(--crimson);border-radius:4px;">
+          <div style="font-size:1.5rem;margin-bottom:6px;">⚔️</div>
+          <div style="font-family:var(--font-display);font-size:0.75rem;color:#ff8888;margin-bottom:4px;">전투</div>
+          <div style="font-size:0.75rem;color:var(--silver-dim);">주문 전투를 시작합니다</div>
+        </div>
+        <div style="padding:12px;background:rgba(26,74,46,0.2);border:1px solid var(--emerald);border-radius:4px;">
+          <div style="font-size:1.5rem;margin-bottom:6px;">🎲</div>
+          <div style="font-family:var(--font-display);font-size:0.75rem;color:var(--emerald-glow);margin-bottom:4px;">협상 후 퇴장</div>
+          <div style="font-size:0.75rem;color:var(--silver-dim);">주사위로 잔류 결정</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="proposeBattle('fight')">⚔️ 전투</button>
+      <button class="btn btn-success" onclick="proposeBattle('dice')">🎲 협상</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('battleProposalModal').classList.add('hidden')">무시</button>
+    </div>
+  </div>
+</div>
+
+<!-- 주사위 모달 -->
+<div id="diceModal" class="modal-overlay hidden">
+  <div class="modal" style="text-align:center;">
+    <div class="modal-title">🎲 주사위 대결</div>
+    <div class="modal-body">
+      <p style="color:var(--parchment-dim);margin-bottom:16px;">높은 수가 나온 팀이 방에 머뭅니다.</p>
+      <div class="dice-container">
+        <div>
+          <div id="myDiceLabel" style="font-size:0.8rem;color:var(--silver-dim);margin-bottom:8px;"></div>
+          <div id="myDiceFace" class="dice-face">?</div>
+        </div>
+        <div style="font-family:var(--font-display);color:var(--gold);font-size:1.2rem;">VS</div>
+        <div>
+          <div id="enemyDiceLabel" style="font-size:0.8rem;color:var(--silver-dim);margin-bottom:8px;"></div>
+          <div id="enemyDiceFace" class="dice-face">?</div>
+        </div>
+      </div>
+      <div id="diceResult" style="font-family:var(--font-display);font-size:1rem;color:var(--gold);margin-top:12px;"></div>
+    </div>
+    <div class="modal-actions">
+      <button id="rollDiceBtn" class="btn btn-primary" onclick="rollMyDice()">🎲 주사위 굴리기</button>
+      <button id="diceCloseBtn" class="btn btn-ghost hidden" onclick="document.getElementById('diceModal').classList.add('hidden')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 전투 모달 -->
+<div id="battleModal" class="modal-overlay hidden">
+  <div class="modal battle-modal">
+    <div class="modal-title" style="color:#ff8888;">⚔️ 마법 전투</div>
+
+    <!-- HP 바 -->
+    <div class="battle-header">
+      <div class="hp-bar-wrap" id="myHPWrap">
+        <div class="hp-label" id="myTeamLabel">내 팀</div>
+        <div class="hp-bar"><div id="myHPFill" class="hp-fill" style="width:100%;"></div></div>
+        <div style="font-size:0.8rem;color:var(--silver-dim);">HP: <span id="myHP">100</span>/100</div>
+      </div>
+      <div class="vs-badge">
+        <div style="font-size:0.75rem;color:var(--silver-dim);">라운드</div>
+        <div id="battleRound" style="font-size:2rem;">1</div>
+      </div>
+      <div class="hp-bar-wrap" id="enemyHPWrap">
+        <div class="hp-label" id="enemyTeamLabel" style="text-align:right;">적 팀</div>
+        <div class="hp-bar"><div id="enemyHPFill" class="hp-fill" style="width:100%;"></div></div>
+        <div style="font-size:0.8rem;color:var(--silver-dim);text-align:right;">HP: <span id="enemyHP">100</span>/100</div>
+      </div>
+    </div>
+
+    <!-- 주문 선택 -->
+    <div id="spellSelectionArea">
+      <p style="font-size:0.85rem;color:var(--parchment-dim);text-align:center;margin-bottom:12px;">주문을 선택하세요 (제한시간 15초)</p>
+      <div class="spells-grid" id="spellsGrid"></div>
+      <div style="text-align:center;margin-top:12px;">
+        <button id="confirmSpellBtn" class="btn btn-danger" onclick="confirmSpell()" disabled>주문 시전!</button>
+        <div id="spellCountdown" style="font-size:0.8rem;color:var(--silver-dim);margin-top:6px;"></div>
+      </div>
+    </div>
+
+    <!-- 대기 메시지 -->
+    <div id="waitingSpell" class="hidden" style="text-align:center;padding:20px;color:var(--parchment-dim);">
+      <div style="font-size:2rem;margin-bottom:8px;">⏳</div>
+      <p>상대방의 주문을 기다리고 있습니다...</p>
+    </div>
+
+    <!-- 전투 로그 -->
+    <div class="battle-log" id="battleLog" style="margin-top:12px;"></div>
+
+    <!-- 전투 종료 결과 -->
+    <div id="battleResult" class="hidden" style="text-align:center;padding:20px;">
+      <div id="battleResultEmoji" style="font-size:3rem;margin-bottom:8px;"></div>
+      <div id="battleResultText" style="font-family:var(--font-display);font-size:1.2rem;color:var(--gold);margin-bottom:8px;"></div>
+      <div id="battleResultDetail" style="font-size:0.9rem;color:var(--parchment-dim);"></div>
+      <button class="btn btn-primary" style="margin-top:16px;" onclick="closeBattle()">확인</button>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer" class="toast-container"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/game.js"></script>
+<script>
+// =============================================
+// 게임 초기화
+// =============================================
+let player = null;
+let currentRoomData = null;
+let currentBattleId = null;
+let selectedSpell = null;
+let spellTimer = null;
+let pendingMoveRoom = null;
+let enemyTeamData = null;
+let teamInventory = {};
+let logEntries = [];
+
+const ROOM_ICONS = {
+  atrium: '🏛️', auror_office: '🔍', department_mysteries: '🌀',
+  interrogation_room: '⛓️', evidence_room: '📦', death_room: '☠️',
+  time_room: '⏰', brain_room: '🧠', minister_office: '👑',
+  level2_hall: '🚶', level3_hall: '🚶', wizengamot_chamber: '⚖️',
+  magical_law: '📜', holding_cells: '🔒', magical_accidents: '💥',
+  obliviator_hq: '🧹', research_lab: '🧪', classified_vault: '🔐',
+  secret_passage: '🕯️', dark_archives: '📚', thought_archive: '💭', past_ministry: '🕰️'
+};
+
+document.addEventListener('DOMContentLoaded', async () => {
+  player = loadPlayer();
+  if (!player) { window.location.href = 'index.html'; return; }
+
+  // 헤더 정보 세팅
+  document.getElementById('playerNameDisplay').textContent = player.name;
+  document.getElementById('teamCodeDisplay').textContent = `[${player.teamCode}]`;
+  const factionTag = document.getElementById('playerFactionTag');
+  factionTag.textContent = player.faction === 'order' ? '불사조 기사단' : '죽음을 먹는 자';
+  factionTag.className = `faction-tag ${player.faction === 'order' ? 'order' : 'death'}`;
+
+  const sidebarTag = document.getElementById('sidebarFactionTag');
+  sidebarTag.textContent = factionTag.textContent;
+  sidebarTag.className = factionTag.className;
+  document.getElementById('sidebarTeamName').textContent = player.teamName;
+
+  // 팀 상태 구독
+  listenToTeam(player.teamCode, onTeamUpdate);
+
+  // 채팅 구독
+  listenToChat(player.teamCode, renderChatMessage);
+
+  // 팀 현재 방 구독 → 방 렌더링
+  db.ref(`teams/${player.teamCode}/currentRoom`).on('value', (snap) => {
+    const roomId = snap.val() || 'atrium';
+    GameState.currentRoom = roomId;
+    renderRoom(roomId);
+    updateRoomPresence(roomId, true);
+    document.getElementById('currentRoomMini').textContent = ROOMS_DATA[roomId]?.name || roomId;
+  });
+
+  // 이동 투표 구독
+  db.ref(`teams/${player.teamCode}/moveRequest`).on('value', (snap) => {
+    const req = snap.val();
+    if (req && req.targetRoom) {
+      showMoveVoteBanner(req);
+    } else {
+      document.getElementById('moveVoteBanner').classList.add('hidden');
+    }
+  });
+
+  // presence 설정
+  db.ref('.info/connected').on('value', (snap) => {
+    if (snap.val()) {
+      db.ref(`players/${player.id}/online`).onDisconnect().set(false);
+      db.ref(`teams/${player.teamCode}/members/${player.id}/online`).onDisconnect().set(false);
+      db.ref(`players/${player.id}`).update({ online: true, currentRoom: GameState.currentRoom || 'atrium' });
+      db.ref(`teams/${player.teamCode}/members/${player.id}`).update({ online: true });
+    }
+  });
+
+  // 팀 인벤토리 구독
+  db.ref(`teams/${player.teamCode}/inventory`).on('value', (snap) => {
+    teamInventory = snap.val() || {};
+    renderSidebarInventory();
+  });
+});
+
+// =============================================
+// 방 렌더링
+// =============================================
+async function renderRoom(roomId) {
+  const room = ROOMS_DATA[roomId];
+  if (!room) return;
+  currentRoomData = room;
+
+  document.getElementById('roomName').innerHTML = `${ROOM_ICONS[roomId] || '🚪'} ${room.name}`;
+  document.getElementById('roomFlavor').textContent = room.flavor;
+  document.getElementById('roomScenario').textContent = room.scenario;
+
+  // 잠금 체크
+  if (room.locked) {
+    const hasKey = teamInventory[room.requiredKey];
+    if (!hasKey) {
+      document.getElementById('roomScenario').innerHTML +=
+        `<div style="margin-top:12px;padding:8px 12px;background:rgba(139,0,0,0.2);border:1px solid var(--crimson);border-radius:4px;font-size:0.85rem;color:#ff8888;">🔒 이 방에 입장하려면 특별한 열쇠가 필요합니다.</div>`;
+    }
+  }
+
+  // 아이템 렌더링
+  await renderItems(room);
+
+  // 단서 렌더링
+  renderClues(room);
+
+  // 연결된 방 렌더링
+  renderConnections(room);
+
+  // 적 감지 리스너
+  listenForEnemies(roomId, player.faction, onEnemyDetected);
+
+  // 조사 로그
+  addLog(`📍 ${room.name}에 진입했습니다.`);
+}
+
+async function renderItems(room) {
+  const grid = document.getElementById('itemsGrid');
+  grid.innerHTML = '';
+
+  const discoveredSnap = await db.ref(`discovered_items/${room.id}`).once('value');
+  const discovered = discoveredSnap.val() || {};
+
+  for (const item of room.items) {
+    const isDiscovered = !!discovered[item.id];
+    const div = document.createElement('div');
+    div.className = `item-card ${isDiscovered ? 'discovered' : ''} ${item.type === 'key' ? 'key-item' : ''}`;
+
+    if (!isDiscovered) {
+      div.onclick = () => handleItemClick(item, room.id);
+    }
+
+    div.innerHTML = `
+      ${item.type === 'key' ? '<div class="item-badge">🔑 열쇠</div>' : ''}
+      <div class="item-name">${item.name}</div>
+      <div class="item-desc">${isDiscovered
+        ? `<span style="color:var(--silver-dim)">이미 ${discovered[item.id].discoveredByName}이(가) 발견함</span>`
+        : item.description
+      }</div>
+    `;
+    grid.appendChild(div);
+  }
+
+  if (room.items.length === 0) {
+    grid.innerHTML = '<div style="color:var(--silver-dim);font-size:0.85rem;padding:8px;">이 방에는 특별한 물건이 없습니다.</div>';
+  }
+}
+
+function renderClues(room) {
+  const list = document.getElementById('cluesList');
+  list.innerHTML = '';
+  for (const clue of room.clues) {
+    const div = document.createElement('div');
+    div.className = 'clue-item';
+    div.textContent = clue;
+    div.onclick = () => { recordClue(clue); showToast('단서를 조사 기록에 추가했습니다.', 'info'); };
+    list.appendChild(div);
+  }
+}
+
+function renderConnections(room) {
+  const container = document.getElementById('roomConnections');
+  container.innerHTML = '';
+  for (const connId of room.connections) {
+    const connRoom = ROOMS_DATA[connId];
+    if (!connRoom) continue;
+    const btn = document.createElement('button');
+    const isLocked = connRoom.locked && !teamInventory[connRoom.requiredKey];
+    btn.className = `room-link-btn ${isLocked ? 'locked' : ''}`;
+    btn.innerHTML = `${ROOM_ICONS[connId] || '🚪'} ${connRoom.name} ${isLocked ? '🔒' : '→'}`;
+    if (!isLocked) btn.onclick = () => requestTeamMove(connId);
+    container.appendChild(btn);
+  }
+}
+
+// =============================================
+// 팀 이동 시스템
+// =============================================
+async function requestTeamMove(targetRoomId) {
+  const members = await db.ref(`teams/${player.teamCode}/members`).once('value');
+  const memberData = members.val() || {};
+  const onlineCount = Object.values(memberData).filter(m => m.online).length;
+
+  if (onlineCount <= 1 || player.soloMode) {
+    // 솔로 또는 혼자인 경우 바로 이동
+    await confirmTeamMove(targetRoomId);
+    return;
+  }
+
+  // 이동 요청 등록
+  pendingMoveRoom = targetRoomId;
+  await db.ref(`teams/${player.teamCode}/moveRequest`).set({
+    targetRoom: targetRoomId,
+    requestedBy: player.id,
+    requestedByName: player.name,
+    targetRoomName: ROOMS_DATA[targetRoomId]?.name,
+    votes: { [player.id]: true },
+    totalNeeded: onlineCount,
+    createdAt: Date.now()
+  });
+
+  showToast(`${ROOMS_DATA[targetRoomId]?.name}(으)로 이동을 제안했습니다.`, 'info');
+}
+
+function showMoveVoteBanner(req) {
+  if (req.requestedBy === player.id) return; // 본인이 요청한 경우 숨김
+  document.getElementById('moveVoteBanner').classList.remove('hidden');
+  document.getElementById('moveVoteRequestor').textContent = req.requestedByName;
+  document.getElementById('moveVoteTarget').textContent = req.targetRoomName;
+  pendingMoveRoom = req.targetRoom;
+
+  const voteCount = Object.keys(req.votes || {}).length;
+  document.getElementById('voteStatus').textContent = `동의: ${voteCount} / ${req.totalNeeded}명`;
+}
+
+async function voteMove(agree) {
+  if (!pendingMoveRoom) return;
+  const reqRef = db.ref(`teams/${player.teamCode}/moveRequest`);
+  const snap = await reqRef.once('value');
+  const req = snap.val();
+  if (!req) return;
+
+  if (agree) {
+    await reqRef.child(`votes/${player.id}`).set(true);
+    const updatedSnap = await reqRef.once('value');
+    const updatedReq = updatedSnap.val();
+    const voteCount = Object.keys(updatedReq.votes || {}).length;
+
+    if (voteCount >= updatedReq.totalNeeded) {
+      // 전원 동의 → 이동 실행
+      await reqRef.remove();
+      await confirmTeamMove(pendingMoveRoom);
+      pendingMoveRoom = null;
+    }
+  } else {
+    // 거부 → 요청 취소
+    await reqRef.remove();
+    pendingMoveRoom = null;
+    showToast('이동이 취소되었습니다.', 'warning');
+  }
+  document.getElementById('moveVoteBanner').classList.add('hidden');
+}
+
+// =============================================
+// 아이템 상호작용
+// =============================================
+async function handleItemClick(item, roomId) {
+  const result = await discoverItem(roomId, item.id);
+
+  if (result.success) {
+    // 발견 성공 모달
+    document.getElementById('itemFoundEmoji').textContent = item.type === 'key' ? '🔑' : '✨';
+    document.getElementById('itemFoundTitle').textContent = item.type === 'key' ? '열쇠 발견!' : '아이템 발견!';
+    document.getElementById('itemFoundName').textContent = item.name;
+    document.getElementById('itemFoundDesc').textContent = item.description;
+    document.getElementById('itemFoundNote').textContent = item.type === 'key'
+      ? `이 열쇠로 "${ROOMS_DATA[item.target]?.name || item.target}" 문을 열 수 있습니다.`
+      : '팀 인벤토리에 추가되었습니다.';
+    document.getElementById('itemFoundModal').classList.remove('hidden');
+
+    addLog(`🔑 ${player.name}이(가) "${item.name}"을(를) 발견했습니다!`);
+    sendChatMessage(`🔑 "${item.name}"을(를) 발견했습니다!`);
+
+    // 아이템 카드 새로고침
+    renderItems(currentRoomData);
+  } else {
+    showToast(result.message, 'error');
+  }
+}
+
+// =============================================
+// 팀 업데이트 렌더링
+// =============================================
+function onTeamUpdate(teamData) {
+  if (!teamData) return;
+  renderTeamMembers(teamData.members || {});
+}
+
+function renderTeamMembers(members) {
+  const list = document.getElementById('teamMembersList');
+  list.innerHTML = '';
+  for (const [id, m] of Object.entries(members)) {
+    const div = document.createElement('div');
+    div.className = `team-member ${m.online ? 'online' : 'offline'}`;
+    div.innerHTML = `
+      <div class="member-dot ${m.online ? 'online' : 'offline'}"></div>
+      <div class="member-name">${m.name}${id === player.id ? ' (나)' : ''}</div>
+    `;
+    list.appendChild(div);
+  }
+}
+
+function renderSidebarInventory() {
+  const list = document.getElementById('sidebarInventory');
+  const count = document.getElementById('invCount');
+  const items = Object.values(teamInventory);
+  count.textContent = items.length;
+
+  list.innerHTML = '';
+  for (const inv of items) {
+    const roomData = ROOMS_DATA[inv.roomId];
+    const itemData = roomData?.items.find(i => i.id === inv.itemId);
+    if (!itemData) continue;
+
+    const div = document.createElement('div');
+    div.className = 'inv-item';
+    div.innerHTML = `
+      <span style="font-size:0.9rem;">${itemData.type === 'key' ? '🔑' : '📦'}</span>
+      <span class="inv-item-name">${itemData.name}</span>
+      <span class="inv-item-type">${itemData.type === 'key' ? '열쇠' : '아이템'}</span>
+    `;
+    list.appendChild(div);
+  }
+
+  if (items.length === 0) {
+    list.innerHTML = '<div style="color:var(--silver-dim);font-size:0.8rem;padding:4px;">아직 수집한 아이템이 없습니다.</div>';
+  }
+
+  // 방 연결 새로고침 (열쇠로 잠금 해제 반영)
+  if (currentRoomData) renderConnections(currentRoomData);
+}
+
+// =============================================
+// 채팅
+// =============================================
+function renderChatMessage(msg) {
+  const chat = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `chat-message ${msg.system ? 'system' : (msg.faction || '')}`;
+
+  if (!msg.system) {
+    div.innerHTML = `<div class="chat-sender ${msg.faction}">${msg.sender}</div>${msg.message}`;
+  } else {
+    div.textContent = msg.message;
+  }
+
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  await sendChatMessage(msg);
+}
+
+// =============================================
+// 적 감지 & 전투
+// =============================================
+function onEnemyDetected(enemies) {
+  if (!enemies.length) return;
+  const enemy = enemies[0];
+  enemyTeamData = enemy;
+
+  document.getElementById('enemyTeamName').textContent =
+    `${enemy.faction === 'order' ? '🦅 불사조 기사단' : '💀 죽음을 먹는 자'} — ${enemy.teamName}`;
+  document.getElementById('battleProposalModal').classList.remove('hidden');
+}
+
+async function proposeBattle(choice) {
+  document.getElementById('battleProposalModal').classList.add('hidden');
+  if (!enemyTeamData) return;
+
+  const battleId = await initBattle(GameState.currentRoom, player.teamCode, enemyTeamData.teamCode);
+  currentBattleId = battleId;
+
+  if (choice === 'fight') {
+    await db.ref(`battles/${battleId}`).update({ status: 'fighting', choice: 'fight' });
+    openBattleModal(battleId);
+  } else {
+    await db.ref(`battles/${battleId}`).update({ status: 'dice', choice: 'dice' });
+    openDiceModal(battleId);
+  }
+
+  // 상대에게 알림
+  await db.ref(`teams/${enemyTeamData.teamCode}/battleChallenge`).set({
+    battleId, challengerTeam: player.teamCode, choice, roomId: GameState.currentRoom
+  });
+}
+
+// ─── 주사위 모달 ───
+function openDiceModal(battleId) {
+  document.getElementById('diceModal').classList.remove('hidden');
+  document.getElementById('myDiceLabel').textContent = player.teamName;
+  document.getElementById('enemyDiceLabel').textContent = enemyTeamData?.teamName || '상대 팀';
+  document.getElementById('diceResult').textContent = '';
+  document.getElementById('diceCloseBtn').classList.add('hidden');
+  document.getElementById('rollDiceBtn').disabled = false;
+
+  // 적 주사위 구독
+  db.ref(`battles/${battleId}/dice`).on('value', async (snap) => {
+    const dice = snap.val();
+    if (!dice) return;
+
+    const myRoll = dice[player.teamCode];
+    const enemyRoll = dice[enemyTeamData?.teamCode];
+
+    if (myRoll) document.getElementById('myDiceFace').textContent = myRoll.roll;
+    if (enemyRoll) document.getElementById('enemyDiceFace').textContent = enemyRoll.roll;
+
+    if (myRoll && enemyRoll) {
+      db.ref(`battles/${battleId}/dice`).off();
+      const myWin = myRoll.roll > enemyRoll.roll;
+      const tie = myRoll.roll === enemyRoll.roll;
+
+      let resultText = '';
+      if (tie) {
+        resultText = '🎲 무승부! 다시 굴립니다...';
+        setTimeout(() => {
+          db.ref(`battles/${battleId}/dice`).remove();
+          document.getElementById('myDiceFace').textContent = '?';
+          document.getElementById('enemyDiceFace').textContent = '?';
+          document.getElementById('rollDiceBtn').disabled = false;
+          document.getElementById('diceResult').textContent = '';
+        }, 2000);
+      } else if (myWin) {
+        resultText = '🏆 우리 팀이 이겼습니다! 이 방에 머뭅니다.';
+        document.getElementById('diceResult').style.color = 'var(--emerald-glow)';
+      } else {
+        resultText = '💨 상대 팀이 이겼습니다. 복도로 이동합니다.';
+        document.getElementById('diceResult').style.color = '#ff8888';
+        setTimeout(() => confirmTeamMove('atrium'), 3000);
+      }
+
+      document.getElementById('diceResult').textContent = resultText;
+      document.getElementById('rollDiceBtn').classList.add('hidden');
+      document.getElementById('diceCloseBtn').classList.remove('hidden');
+    }
+  });
+}
+
+async function rollMyDice() {
+  document.getElementById('rollDiceBtn').disabled = true;
+  document.getElementById('myDiceFace').classList.add('rolling');
+  setTimeout(() => document.getElementById('myDiceFace').classList.remove('rolling'), 500);
+  await rollDiceForExit(currentBattleId, player.teamCode);
+}
+
+// ─── 전투 모달 ───
+function openBattleModal(battleId) {
+  document.getElementById('battleModal').classList.remove('hidden');
+  document.getElementById('spellSelectionArea').classList.remove('hidden');
+  document.getElementById('waitingSpell').classList.add('hidden');
+  document.getElementById('battleResult').classList.add('hidden');
+
+  document.getElementById('myTeamLabel').textContent = player.teamName;
+  document.getElementById('enemyTeamLabel').textContent = enemyTeamData?.teamName || '적 팀';
+
+  const myHP = document.getElementById('myHPFill');
+  myHP.className = `hp-fill ${player.faction}`;
+
+  // 주문 카드 렌더링
+  const grid = document.getElementById('spellsGrid');
+  grid.innerHTML = '';
+  selectedSpell = null;
+
+  for (const spell of SPELLS) {
+    const card = document.createElement('div');
+    card.className = 'spell-card';
+    card.id = `spell_${spell.id}`;
+    card.innerHTML = `
+      <span class="spell-emoji">${spell.emoji}</span>
+      <div class="spell-name">${spell.name}</div>
+      <div class="spell-type">${spell.description}</div>
+    `;
+    card.onclick = () => selectSpellCard(spell);
+    grid.appendChild(card);
+  }
+
+  document.getElementById('confirmSpellBtn').disabled = true;
+
+  // 카운트다운
+  let timeLeft = 15;
+  document.getElementById('spellCountdown').textContent = `남은 시간: ${timeLeft}초`;
+  if (spellTimer) clearInterval(spellTimer);
+  spellTimer = setInterval(() => {
+    timeLeft--;
+    document.getElementById('spellCountdown').textContent = `남은 시간: ${timeLeft}초`;
+    if (timeLeft <= 0) {
+      clearInterval(spellTimer);
+      if (!selectedSpell) {
+        selectSpellCard(SPELLS[0]); // 자동 선택
+      }
+      confirmSpell();
+    }
+  }, 1000);
+
+  // 전투 상태 구독
+  listenToBattle(battleId, onBattleUpdate);
+}
+
+function selectSpellCard(spell) {
+  selectedSpell = spell;
+  document.querySelectorAll('.spell-card').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById(`spell_${spell.id}`);
+  if (card) card.classList.add('selected');
+  document.getElementById('confirmSpellBtn').disabled = false;
+}
+
+async function confirmSpell() {
+  if (!selectedSpell || !currentBattleId) return;
+  if (spellTimer) clearInterval(spellTimer);
+
+  document.getElementById('spellSelectionArea').classList.add('hidden');
+  document.getElementById('waitingSpell').classList.remove('hidden');
+
+  await submitSpell(currentBattleId, player.teamCode, selectedSpell.id);
+}
+
+function onBattleUpdate(battle) {
+  if (!battle) return;
+
+  document.getElementById('battleRound').textContent = battle.round || 1;
+
+  // 양측 주문이 제출된 경우 처리
+  if (battle.spells) {
+    const mySpellId = battle.spells[player.teamCode]?.spellId;
+    const enemySpellId = battle.spells[enemyTeamData?.teamCode]?.spellId;
+
+    if (mySpellId && enemySpellId) {
+      resolveCombatRound(battle, mySpellId, enemySpellId);
+    }
+  }
+
+  // HP 업데이트
+  const myHPKey = `hp_${player.teamCode}`;
+  const enemyHPKey = `hp_${enemyTeamData?.teamCode}`;
+  const myHP = battle[myHPKey] ?? 100;
+  const enemyHP = battle[enemyHPKey] ?? 100;
+
+  document.getElementById('myHP').textContent = myHP;
+  document.getElementById('enemyHP').textContent = enemyHP;
+  document.getElementById('myHPFill').style.width = `${myHP}%`;
+  document.getElementById('enemyHPFill').style.width = `${enemyHP}%`;
+
+  // 전투 종료 확인
+  if (battle.status === 'ended') {
+    showBattleResult(battle);
+  }
+
+  // 로그 업데이트
+  if (battle.log) {
+    const logEl = document.getElementById('battleLog');
+    logEl.innerHTML = battle.log.slice(-10).map(l =>
+      `<div class="battle-log-entry ${l.type || ''}">${l.text}</div>`
+    ).join('');
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+}
+
+async function resolveCombatRound(battle, mySpellId, enemySpellId) {
+  // 결과 계산은 한 팀(팀코드 알파벳 순서 첫번째)만 실행
+  const teams = [player.teamCode, enemyTeamData?.teamCode].sort();
+  if (teams[0] !== player.teamCode) return;
+
+  const mySpell = SPELLS.find(s => s.id === mySpellId);
+  const enemySpell = SPELLS.find(s => s.id === enemySpellId);
+  const result = SPELL_RESULTS[mySpell.type][enemySpell.type];
+
+  const dmg = { win: [0, 20], tie: [5, 5], lose: [20, 0] }[result];
+  const myHPKey = `hp_${player.teamCode}`;
+  const enemyHPKey = `hp_${enemyTeamData?.teamCode}`;
+  const myHP = Math.max(0, (battle[myHPKey] ?? 100) - dmg[0]);
+  const enemyHP = Math.max(0, (battle[enemyHPKey] ?? 100) - dmg[1]);
+
+  const logEntry = {
+    text: `라운드 ${battle.round}: ${mySpell.name} vs ${enemySpell.name} — ${result === 'win' ? '우리 팀 승!' : result === 'lose' ? '상대 팀 승!' : '무승부'}`,
+    type: result === 'win' ? 'block' : result === 'lose' ? 'damage' : 'round'
+  };
+
+  const updates = {
+    [myHPKey]: myHP,
+    [enemyHPKey]: enemyHP,
+    round: (battle.round || 1) + 1,
+    spells: null,
+    log: [...(battle.log || []), logEntry]
+  };
+
+  if (myHP === 0 || enemyHP === 0) {
+    updates.status = 'ended';
+    updates.winner = myHP > 0 ? player.teamCode : enemyTeamData?.teamCode;
+  }
+
+  await db.ref(`battles/${currentBattleId}`).update(updates);
+
+  if (!(myHP === 0 || enemyHP === 0)) {
+    // 다음 라운드
+    document.getElementById('spellSelectionArea').classList.remove('hidden');
+    document.getElementById('waitingSpell').classList.add('hidden');
+    selectedSpell = null;
+    document.querySelectorAll('.spell-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById('confirmSpellBtn').disabled = true;
+
+    let timeLeft = 15;
+    document.getElementById('spellCountdown').textContent = `남은 시간: ${timeLeft}초`;
+    if (spellTimer) clearInterval(spellTimer);
+    spellTimer = setInterval(() => {
+      timeLeft--;
+      document.getElementById('spellCountdown').textContent = `남은 시간: ${timeLeft}초`;
+      if (timeLeft <= 0) {
+        clearInterval(spellTimer);
+        if (!selectedSpell) selectSpellCard(SPELLS[0]);
+        confirmSpell();
+      }
+    }, 1000);
+  }
+}
+
+function showBattleResult(battle) {
+  document.getElementById('spellSelectionArea').classList.add('hidden');
+  document.getElementById('waitingSpell').classList.add('hidden');
+  document.getElementById('battleResult').classList.remove('hidden');
+
+  const iWon = battle.winner === player.teamCode;
+  document.getElementById('battleResultEmoji').textContent = iWon ? '🏆' : '💀';
+  document.getElementById('battleResultText').textContent = iWon ? '승리!' : '패배...';
+  document.getElementById('battleResultDetail').textContent = iWon
+    ? '적을 물리쳤습니다. 이 방에 머뭅니다.'
+    : '전투에서 졌습니다. 복도로 이동합니다.';
+
+  if (!iWon) setTimeout(() => confirmTeamMove('atrium'), 3000);
+}
+
+function closeBattle() {
+  document.getElementById('battleModal').classList.add('hidden');
+  currentBattleId = null;
+  if (spellTimer) clearInterval(spellTimer);
+}
+
+// =============================================
+// 유틸리티
+// =============================================
+function showInventory() {
+  const modal = document.getElementById('inventoryModal');
+  const content = document.getElementById('inventoryModalContent');
+  const items = Object.values(teamInventory);
+
+  if (items.length === 0) {
+    content.innerHTML = '<p style="color:var(--silver-dim);text-align:center;padding:20px;">아직 수집한 아이템이 없습니다.</p>';
+  } else {
+    content.innerHTML = items.map(inv => {
+      const roomData = ROOMS_DATA[inv.roomId];
+      const itemData = roomData?.items.find(i => i.id === inv.itemId);
+      if (!itemData) return '';
+      return `<div class="inv-item" style="margin-bottom:8px;">
+        <span>${itemData.type === 'key' ? '🔑' : '📦'}</span>
+        <div style="flex:1;">
+          <div style="color:var(--gold);font-size:0.9rem;">${itemData.name}</div>
+          <div style="color:var(--parchment-dim);font-size:0.8rem;">${itemData.description}</div>
+          ${itemData.type === 'key' ? `<div style="color:var(--silver-dim);font-size:0.75rem;">→ ${ROOMS_DATA[itemData.target]?.name || ''} 개방</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function copyTeamLink() {
+  const url = `${window.location.origin}${window.location.pathname.replace('lobby.html', '')}index.html?team=${player.teamCode}`;
+  navigator.clipboard.writeText(url).then(() => showToast('팀 초대 링크가 복사되었습니다!', 'success'));
+}
+
+function addLog(text) {
+  logEntries.unshift({ text, time: new Date().toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) });
+  const container = document.getElementById('investigationLog');
+  const div = document.createElement('div');
+  div.style.cssText = 'padding:6px 12px;background:rgba(255,255,255,0.02);border-radius:4px;font-size:0.82rem;color:var(--parchment-dim);display:flex;gap:8px;';
+  div.innerHTML = `<span style="color:var(--silver-dim);font-size:0.75rem;">${logEntries[0].time}</span><span>${text}</span>`;
+  container.prepend(div);
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}
+
+function logout() {
+  if (confirm('정말 퇴장하시겠습니까?')) {
+    db.ref(`players/${player.id}`).update({ online: false });
+    db.ref(`teams/${player.teamCode}/members/${player.id}`).update({ online: false });
+    updateRoomPresence(GameState.currentRoom, false);
+    localStorage.removeItem('mof_player');
+    window.location.href = 'index.html';
+  }
+}
+
+// 챌린지 수신 (상대가 전투 제안했을 때)
+function listenForBattleChallenges() {
+  db.ref(`teams/${player.teamCode}/battleChallenge`).on('value', async (snap) => {
+    const challenge = snap.val();
+    if (!challenge) return;
+    currentBattleId = challenge.battleId;
+
+    if (challenge.choice === 'fight') {
+      openBattleModal(challenge.battleId);
+    } else {
+      openDiceModal(challenge.battleId);
+    }
+
+    await db.ref(`teams/${player.teamCode}/battleChallenge`).remove();
+  });
+}
+
+// 초기화 후 챌린지 리스너 등록
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(listenForBattleChallenges, 1000);
+});
+</script>
+</body>
+</html>
