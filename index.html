@@ -238,44 +238,56 @@ function selFaction(id) {
 
 async function enterMinistry() {
   const name    = document.getElementById('inp-name').value.trim();
-  const rawCode = document.getElementById('inp-code').value.trim();
+  const rawCode = document.getElementById('inp-code').value.trim().toUpperCase();
   const errEl   = document.getElementById('join-err');
+  const btn     = document.getElementById('btn-enter');
   errEl.style.display = 'none';
 
-  if (!selectedFaction)        { showErr(errEl,'진영을 선택해주세요.'); return; }
-  if (!name)                   { showErr(errEl,'마법사 이름을 입력해주세요.'); return; }
+  if (!selectedFaction)               { showErr(errEl,'진영을 선택해주세요.'); return; }
+  if (!name)                          { showErr(errEl,'마법사 이름을 입력해주세요.'); return; }
   if (!rawCode || rawCode.length < 2) { showErr(errEl,'팀 암호를 2자 이상 입력해주세요.'); return; }
 
-  // 팀 ID = 암호 + 진영 — 같은 암호 & 같은 진영 = 같은 팀
-  const teamId = `team__${rawCode}__${selectedFaction}`;
-  const pid    = `p_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+  btn.disabled = true;
+  btn.textContent = '접속 중…';
 
-  /* 팀 없으면 생성 */
-  const tSnap = await get(ref(db, `teams/${teamId}`));
-  if (!tSnap.exists()) {
-    await set(ref(db, `teams/${teamId}`), {
-      code: rawCode, faction: selectedFaction,
-      currentRoom: "corridor_main",
-      hp: 100, maxHp: 100, inventory: {}
+  try {
+    if (FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY') {
+      throw new Error('firebase-config.js 에 Firebase 설정을 먼저 입력해주세요!');
+    }
+
+    const teamId = 'team__' + rawCode + '__' + selectedFaction;
+    const pid    = 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+
+    const tSnap = await get(ref(db, 'teams/' + teamId));
+    if (!tSnap.exists()) {
+      await set(ref(db, 'teams/' + teamId), {
+        code: rawCode, faction: selectedFaction,
+        currentRoom: 'corridor_main',
+        hp: 100, maxHp: 100, inventory: {}
+      });
+    }
+
+    await set(ref(db, 'players/' + pid), {
+      name, factionId: selectedFaction, teamId, online: true, ts: serverTimestamp()
     });
+    await set(ref(db, 'teams/' + teamId + '/players/' + pid), { name, online: true });
+
+    await initRoomsDB();
+
+    await set(ref(db, 'rooms/corridor_main/teams/' + teamId),
+      { faction: selectedFaction, at: serverTimestamp() });
+
+    ME = { pid, name, factionId: selectedFaction, teamId, code: rawCode };
+    localStorage.setItem('hp_me', JSON.stringify(ME));
+
+    startGame();
+
+  } catch(e) {
+    console.error('enterMinistry error:', e);
+    showErr(errEl, e.message || 'Firebase 연결 오류. firebase-config.js 설정을 확인해주세요.');
+    btn.disabled = false;
+    btn.textContent = '마법부 진입 ✦';
   }
-
-  await set(ref(db, `players/${pid}`), {
-    name, factionId: selectedFaction, teamId, online: true, ts: serverTimestamp()
-  });
-  await set(ref(db, `teams/${teamId}/players/${pid}`), { name, online: true });
-
-  /* 방 DB 초기화 (최초 1회) */
-  await initRoomsDB();
-
-  /* 중앙 복도에 팀 등록 */
-  await set(ref(db, `rooms/corridor_main/teams/${teamId}`),
-    { faction: selectedFaction, at: serverTimestamp() });
-
-  ME = { pid, name, factionId: selectedFaction, teamId, code: rawCode };
-  localStorage.setItem('hp_me', JSON.stringify(ME));
-
-  startGame();
 }
 function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
 
