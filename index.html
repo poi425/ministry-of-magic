@@ -30,12 +30,12 @@
 
     <!-- 진영 -->
     <div class="faction-row">
-      <button class="faction-btn" id="btn-order" onclick="selFaction('order')">
+      <button class="faction-btn" id="btn-order">
         <span class="fb-icon">🔥</span>
         <span class="fb-name">불사조 기사단</span>
         <span class="fb-sub">Order of the Phoenix</span>
       </button>
-      <button class="faction-btn" id="btn-death" onclick="selFaction('death')">
+      <button class="faction-btn" id="btn-death">
         <span class="fb-icon">💀</span>
         <span class="fb-name">죽음을 먹는 자</span>
         <span class="fb-sub">Death Eaters</span>
@@ -45,22 +45,20 @@
     <!-- 이름 -->
     <div class="field">
       <label>마법사 이름</label>
-      <input id="inp-name" type="text" placeholder="예) 헤르미온느 그레인저" maxlength="20"
-             onkeydown="if(event.key==='Enter')inp_code.focus()">
+      <input id="inp-name" type="text" placeholder="예) 헤르미온느 그레인저" maxlength="20">
     </div>
 
-    <!-- 팀 암호 — 핵심 변경 사항: 동일 텍스트 = 동일 팀 -->
+    <!-- 팀 암호 -->
     <div class="field">
       <label>팀 암호</label>
-      <input id="inp-code" type="text" placeholder="예) PHOENIX-A  또는  어둠의군주" maxlength="20"
-             onkeydown="if(event.key==='Enter')enterMinistry()">
+      <input id="inp-code" type="text" placeholder="예) PHOENIX-A  또는  어둠의군주" maxlength="20">
       <div class="field-hint">
         같은 팀원은 <strong>완전히 동일한 암호</strong>를 입력하면 자동으로 같은 팀으로 연결됩니다.<br>
         진영이 달라도 암호가 같으면 서로 다른 팀이 됩니다.
       </div>
     </div>
 
-    <button class="btn-enter" onclick="enterMinistry()">마법부 진입 ✦</button>
+    <button class="btn-enter" id="btn-enter">마법부 진입 ✦</button>
     <div class="join-err" id="join-err"></div>
   </div>
 </div>
@@ -155,7 +153,7 @@
     <div class="chat-input-row">
       <input id="chat-inp" type="text" placeholder="메시지…" maxlength="200"
              onkeydown="if(event.key==='Enter')sendMsg()">
-      <button class="chat-send-btn" onclick="sendMsg()">전송</button>
+      <button class="chat-send-btn">전송</button>
     </div>
   </aside>
 
@@ -173,8 +171,8 @@
       <div id="phase-neg">
         <div class="neg-team-row" id="neg-teams"></div>
         <div class="neg-btns">
-          <button class="btn-fight" id="btn-fight" onclick="pickNeg('fight')">⚔️ 전투 개시</button>
-          <button class="btn-flee"  id="btn-flee"  onclick="pickNeg('flee')">🎲 주사위로 결정</button>
+          <button class="btn-fight" id="btn-fight">⚔️ 전투 개시</button>
+          <button class="btn-flee"  id="btn-flee">🎲 주사위로 결정</button>
         </div>
         <div class="neg-waiting" id="neg-wait" style="display:none">
           상대방 응답 대기 중…
@@ -196,7 +194,7 @@
           <div class="result-icon" id="r-icon">⚔️</div>
           <div class="result-title" id="r-title">결과</div>
           <div class="result-desc"  id="r-desc"></div>
-          <button class="btn-continue" onclick="closeBattle()">계속 탐색하기</button>
+          <button class="btn-continue" id="btn-continue">계속 탐색하기</button>
         </div>
       </div>
 
@@ -219,16 +217,6 @@ import { FIREBASE_CONFIG, FACTIONS, SPELLS, MATCHUP, ROOMS } from "./firebase-co
 /* ── Firebase 초기화 ── */
 const app = initializeApp(FIREBASE_CONFIG);
 const db  = getDatabase(app);
-
-/* ── 전역 노출 ── */
-window.selFaction    = selFaction;
-window.enterMinistry = enterMinistry;
-window.sendMsg       = sendMsg;
-window.pickNeg       = pickNeg;
-window.closeBattle   = closeBattle;
-window.pickSpell     = pickSpell;
-window.doMove        = doMove;
-window.doClaim       = doClaim;
 
 /* ── 상태 ── */
 let ME = null;            // { pid, name, factionId, teamId }
@@ -392,24 +380,26 @@ function renderMoves(rd) {
     const cr = ROOMS.find(r => r.id === cid);
     if (!cr) return '';
     const locked = cr.locked && !hasKey(cr.requiredKey, inv);
-    return `<button class="move-tile${locked?' locked':''}" onclick="doMove('${cid}',${locked})">
+    return `<button class="move-tile${locked?' locked':''}" data-room="${cid}" data-locked="${locked}">
       <span class="move-tile-icon">${cr.icon}</span>
       <span class="move-tile-name">${cr.name}</span>
       ${locked ? `<span class="move-tile-lock">🔒</span>` : ''}
     </button>`;
   }).join('');
+  /* 이동 버튼 이벤트 위임 */
+  grid.onclick = async (e) => {
+    const btn = e.target.closest('.move-tile');
+    if (!btn) return;
+    const rid    = btn.dataset.room;
+    const locked = btn.dataset.locked === 'true';
+    if (locked) { toast('열쇠가 필요합니다.','err'); return; }
+    const old = teamSnap?.currentRoom || curRoom;
+    if (old && old !== rid) await remove(ref(db, `rooms/${old}/teams/${ME.teamId}`));
+    await update(ref(db, `teams/${ME.teamId}`), { currentRoom: rid });
+    await set(ref(db, `rooms/${rid}/teams/${ME.teamId}`),
+      { faction: ME.factionId, at: serverTimestamp() });
+  };
 }
-
-window.doMove = async function(rid, locked) {
-  if (locked) { toast('열쇠가 필요합니다.','err'); return; }
-  const old = teamSnap?.currentRoom || curRoom;
-  if (old !== 'corridor_main' && old !== rid) {
-    await remove(ref(db, `rooms/${old}/teams/${ME.teamId}`));
-  }
-  await update(ref(db, `teams/${ME.teamId}`), { currentRoom: rid });
-  await set(ref(db, `rooms/${rid}/teams/${ME.teamId}`),
-    { faction: ME.factionId, at: serverTimestamp() });
-};
 
 function hasKey(req, inv) {
   if (!req) return true;
@@ -447,34 +437,35 @@ function renderPresence(teams) {
 function renderItems(rd, claimed) {
   if (!rd.items?.length) { document.getElementById('sec-items').style.display='none'; return; }
   document.getElementById('sec-items').style.display = '';
-  document.getElementById('item-grid').innerHTML = rd.items.map(it => {
+  const grid = document.getElementById('item-grid');
+  grid.innerHTML = rd.items.map(it => {
     const isClaimed = !!claimed[it.id];
     return `<div class="item-tile${isClaimed?' claimed':''}${it.isKey?' is-key':''}"
-                 onclick="doClaim('${it.id}')">
+                 data-item="${it.id}">
       <span class="item-tile-icon">${it.icon}</span>
       <div class="item-tile-name">${it.name}</div>
       <div class="item-tile-desc">${it.desc}</div>
       ${isClaimed ? `<div class="item-tile-claimed-badge">획득됨</div>` : ''}
     </div>`;
   }).join('');
+  grid.onclick = async (e) => {
+    const tile = e.target.closest('.item-tile');
+    if (!tile || tile.classList.contains('claimed')) return;
+    const itemId = tile.dataset.item;
+    const it = rd.items.find(i => i.id === itemId);
+    if (!it) return;
+    let ok = false;
+    await runTransaction(ref(db, `rooms/${curRoom}/claimedItems/${itemId}`), cur => {
+      if (cur !== null) return;
+      ok = true;
+      return { teamId: ME.teamId, by: ME.name, at: Date.now() };
+    });
+    if (!ok) { toast('이미 다른 팀이 획득했습니다.','err'); return; }
+    await set(ref(db, `teams/${ME.teamId}/inventory/${itemId}`),
+      { ...it, foundAt: Date.now() });
+    toast(`✦ ${it.name} 획득!`, 'ok');
+  };
 }
-
-window.doClaim = async function(itemId) {
-  const rd = ROOMS.find(r => r.id === curRoom);
-  const it = rd?.items?.find(i => i.id === itemId);
-  if (!it) return;
-
-  let ok = false;
-  await runTransaction(ref(db, `rooms/${curRoom}/claimedItems/${itemId}`), cur => {
-    if (cur !== null) return;
-    ok = true;
-    return { teamId: ME.teamId, by: ME.name, at: Date.now() };
-  });
-  if (!ok) { toast('이미 다른 팀이 획득했습니다.','err'); return; }
-  await set(ref(db, `teams/${ME.teamId}/inventory/${itemId}`),
-    { ...it, foundAt: Date.now() });
-  toast(`✦ ${it.name} 획득!`, 'ok');
-};
 
 /* ═══════════════════════════════════
    인벤토리 & HP
@@ -584,19 +575,17 @@ function showNeg(b, bid) {
   window._bid = bid; window._battle = b;
 }
 
-window.pickNeg = async function(choice) {
+async function pickNegChoice(choice) {
   const bid = window._bid;
   document.getElementById('btn-fight').disabled = true;
   document.getElementById('btn-flee').disabled  = true;
   document.getElementById('neg-wait').style.display = '';
   await update(ref(db, `battles/${bid}`), { [`neg_${ME.teamId}`]: choice });
-
   const snap = await get(ref(db, `battles/${bid}`));
   const b = snap.val();
   const c1 = b[`neg_${b.t1}`], c2 = b[`neg_${b.t2}`];
   if (c1 && c2) resolveNeg(bid, b, c1, c2);
-};
-
+}
 async function resolveNeg(bid, b, c1, c2) {
   if (c1==='flee' || c2==='flee') {
     const d1 = Math.ceil(Math.random()*6), d2 = Math.ceil(Math.random()*6);
@@ -634,30 +623,31 @@ function showFight(b, bid) {
   const mySpell = b[`sp_${ME.teamId}_${b.round}`];
   spellPicked = !!mySpell;
   document.getElementById('spell-wait').style.display = spellPicked ? '' : 'none';
-  document.getElementById('spell-grid').innerHTML = SPELLS.map(s =>
+  const spellGrid = document.getElementById('spell-grid');
+  spellGrid.innerHTML = SPELLS.map(s =>
     `<button class="spell-tile${mySpell===s.id?' chosen':''}"
-             ${spellPicked?'disabled':''} onclick="pickSpell('${s.id}')">
+             data-spell="${s.id}" ${spellPicked?'disabled':''}>
       <span class="st-emo">${s.emoji}</span>
       <span class="st-name">${s.name}</span>
       <span class="st-type">${s.desc}</span>
     </button>`
   ).join('');
+  spellGrid.onclick = async (e) => {
+    const btn = e.target.closest('.spell-tile');
+    if (!btn || spellPicked) return;
+    spellPicked = true;
+    const spellId = btn.dataset.spell;
+    document.querySelectorAll('.spell-tile').forEach(el => el.disabled = true);
+    document.getElementById('spell-wait').style.display = '';
+    await update(ref(db, `battles/${bid}`), { [`sp_${ME.teamId}_${b.round}`]: spellId });
+    const snap = await get(ref(db, `battles/${bid}`));
+    const bv = snap.val();
+    const s1 = bv[`sp_${bv.t1}_${bv.round}`], s2 = bv[`sp_${bv.t2}_${bv.round}`];
+    if (s1 && s2) resolveRound(bid, bv, s1, s2);
+  };
   window._bid = bid; window._battle = b;
 }
 
-window.pickSpell = async function(spellId) {
-  if (spellPicked) return;
-  spellPicked = true;
-  const bid = window._bid; const b = window._battle;
-  document.querySelectorAll('.spell-tile').forEach(el => el.disabled = true);
-  document.getElementById('spell-wait').style.display = '';
-  await update(ref(db, `battles/${bid}`), { [`sp_${ME.teamId}_${b.round}`]: spellId });
-
-  const snap = await get(ref(db, `battles/${bid}`));
-  const bv = snap.val();
-  const s1 = bv[`sp_${bv.t1}_${bv.round}`], s2 = bv[`sp_${bv.t2}_${bv.round}`];
-  if (s1 && s2) resolveRound(bid, bv, s1, s2);
-};
 
 async function resolveRound(bid, b, s1id, s2id) {
   const s1 = SPELLS.find(s=>s.id===s1id), s2 = SPELLS.find(s=>s.id===s2id);
@@ -732,6 +722,23 @@ window.closeBattle = function() {
 function openOverlay() {
   document.getElementById('battle-overlay').classList.add('open');
 }
+
+/* ═══════════════════════════════════
+   모든 버튼 이벤트 바인딩 (DOMContentLoaded 후)
+═══════════════════════════════════ */
+document.getElementById('btn-order').addEventListener('click', () => selFaction('order'));
+document.getElementById('btn-death').addEventListener('click', () => selFaction('death'));
+document.getElementById('btn-enter').addEventListener('click', enterMinistry);
+document.getElementById('inp-name').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('inp-code').focus(); });
+document.getElementById('inp-code').addEventListener('keydown', e => { if(e.key==='Enter') enterMinistry(); });
+document.getElementById('chat-inp').addEventListener('keydown', e => { if(e.key==='Enter') sendMsg(); });
+document.querySelector('.chat-send-btn').addEventListener('click', sendMsg);
+document.getElementById('btn-fight').addEventListener('click', () => pickNegChoice('fight'));
+document.getElementById('btn-flee').addEventListener('click',  () => pickNegChoice('flee'));
+document.getElementById('btn-continue').addEventListener('click', () => {
+  document.getElementById('battle-overlay').classList.remove('open');
+  curBattleId = null;
+});
 
 /* ═══════════════════════════════════
    유틸
