@@ -3,170 +3,762 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>마법부 청사 — 조사 시작</title>
-<link rel="stylesheet" href="css/style.css">
+<title>마법부 청사 — 비밀 작전</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="login-page">
-  <div class="login-card">
-    <div class="login-seal">⚜️</div>
-    <h1 class="login-title">마법부 청사</h1>
-    <p class="login-subtitle">MINISTRY OF MAGIC — 비밀 조사 임무</p>
 
-    <div class="divider"></div>
+<!-- ▓▓▓▓▓  JOIN 화면  ▓▓▓▓▓ -->
+<div id="join-page">
 
-    <!-- 이름 입력 -->
-    <div class="form-group">
-      <label class="form-label" for="playerName">마법사 이름</label>
-      <input class="form-input" type="text" id="playerName" placeholder="이름을 입력하세요" maxlength="20">
+  <!-- 마법진 배경 애니메이션 -->
+  <div class="magic-circle-bg" aria-hidden="true">
+    <div class="mc-ring"></div>
+    <div class="mc-ring"></div>
+    <div class="mc-ring"></div>
+    <div class="mc-ring"></div>
+  </div>
+
+  <div class="join-card">
+    <div class="crest-wrap">
+      <span class="crest-sigil">⚡</span>
+      <div class="crest-title">MINISTRY OF MAGIC</div>
+      <div class="crest-sub">기밀 조사 작전 — 마법사 신원 확인</div>
     </div>
 
-    <!-- 진영 선택 -->
-    <div class="form-group">
-      <label class="form-label">진영 선택</label>
-      <div class="faction-select">
-        <div class="faction-option order-option" id="factionOrder" onclick="selectFaction('order')">
-          <span class="faction-icon">🦅</span>
-          <span class="faction-name">불사조 기사단</span>
-          <p class="faction-desc">어둠에 맞서 싸우는 자들</p>
-        </div>
-        <div class="faction-option death-option" id="factionDeath" onclick="selectFaction('death')">
-          <span class="faction-icon">💀</span>
-          <span class="faction-name">죽음을 먹는 자</span>
-          <p class="faction-desc">볼드모트의 충성스러운 추종자</p>
-        </div>
+    <div class="divider-rune">IDENTITAS</div>
+
+    <!-- 진영 -->
+    <div class="faction-row">
+      <button class="faction-btn" id="btn-order" onclick="selFaction('order')">
+        <span class="fb-icon">🔥</span>
+        <span class="fb-name">불사조 기사단</span>
+        <span class="fb-sub">Order of the Phoenix</span>
+      </button>
+      <button class="faction-btn" id="btn-death" onclick="selFaction('death')">
+        <span class="fb-icon">💀</span>
+        <span class="fb-name">죽음을 먹는 자</span>
+        <span class="fb-sub">Death Eaters</span>
+      </button>
+    </div>
+
+    <!-- 이름 -->
+    <div class="field">
+      <label>마법사 이름</label>
+      <input id="inp-name" type="text" placeholder="예) 헤르미온느 그레인저" maxlength="20"
+             onkeydown="if(event.key==='Enter')inp_code.focus()">
+    </div>
+
+    <!-- 팀 암호 — 핵심 변경 사항: 동일 텍스트 = 동일 팀 -->
+    <div class="field">
+      <label>팀 암호</label>
+      <input id="inp-code" type="text" placeholder="예) PHOENIX-A  또는  어둠의군주" maxlength="20"
+             onkeydown="if(event.key==='Enter')enterMinistry()">
+      <div class="field-hint">
+        같은 팀원은 <strong>완전히 동일한 암호</strong>를 입력하면 자동으로 같은 팀으로 연결됩니다.<br>
+        진영이 달라도 암호가 같으면 서로 다른 팀이 됩니다.
       </div>
     </div>
 
-    <div class="divider"></div>
-
-    <!-- 팀 코드 -->
-    <div class="form-group">
-      <label class="form-label">팀 코드 (같은 팀끼리 동일 코드 입력)</label>
-      <div style="display:flex; gap:8px;">
-        <input class="form-input" type="text" id="teamCode" placeholder="팀 코드 입력 또는 생성" maxlength="8" style="text-transform:uppercase;">
-        <button class="btn btn-ghost btn-sm" onclick="generateTeamCode()" style="white-space:nowrap;">자동 생성</button>
-      </div>
-      <p style="font-size:0.75rem; color:var(--silver-dim); margin-top:4px;">같은 팀원은 동일한 코드를 입력하세요</p>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">팀 이름 (선택)</label>
-      <input class="form-input" type="text" id="teamName" placeholder="팀 이름 (없으면 코드가 팀명이 됨)" maxlength="20">
-    </div>
-
-    <!-- 개인조사 옵션 -->
-    <div style="display:flex; align-items:center; gap:8px; margin-bottom:var(--gap-lg);">
-      <input type="checkbox" id="soloMode" style="accent-color: var(--gold); width:16px; height:16px;">
-      <label for="soloMode" style="font-size:0.85rem; color:var(--parchment-dim); cursor:pointer;">개인 조사 모드 (혼자 탐색)</label>
-    </div>
-
-    <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="startGame()">
-      🚪 마법부에 입장
-    </button>
-
-    <div id="errorMsg" style="color:#ff8888; font-size:0.8rem; text-align:center; margin-top:var(--gap-sm); display:none;"></div>
-
-    <div class="divider"></div>
-    <p style="font-size:0.75rem; color:var(--silver-dim); text-align:center; line-height:1.6;">
-      진영이 다른 팀과 같은 방에서 만나면 전투가 발생할 수 있습니다.<br>
-      발견한 열쇠와 단서는 전 서버에서 공유됩니다.
-    </p>
+    <button class="btn-enter" onclick="enterMinistry()">마법부 진입 ✦</button>
+    <div class="join-err" id="join-err"></div>
   </div>
 </div>
 
-<div id="toastContainer" class="toast-container"></div>
+<!-- ▓▓▓▓▓  게임 화면  ▓▓▓▓▓ -->
+<div id="game-page" class="hidden">
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="js/firebase-config.js"></script>
-<script>
+  <!-- 탑바 -->
+  <header id="topbar">
+    <div class="tb-brand">
+      <span>⚡</span> 마법부 청사
+    </div>
+    <div class="tb-room-path" id="tb-path">복도 / <em>로딩 중…</em></div>
+    <div class="tb-right">
+      <span class="tb-player" id="tb-player">-</span>
+      <div class="tb-hp-wrap">
+        <div class="tb-hp-bar-bg">
+          <div class="tb-hp-bar" id="tb-hp-bar" style="width:100%"></div>
+        </div>
+        <span class="tb-hp-num" id="tb-hp-num">100</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 메인 탐색 -->
+  <main id="main-area">
+
+    <!-- 방 헤더 -->
+    <div class="room-card">
+      <div class="room-header-row">
+        <div class="room-icon-big" id="room-icon">🏛️</div>
+        <div>
+          <div class="room-name" id="room-name">로딩 중…</div>
+          <div class="room-desc" id="room-desc"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 현재 탐색자 -->
+    <div class="section">
+      <div class="section-head"><span class="sh-icon">👁</span> 현재 탐색자</div>
+      <div class="section-body">
+        <div class="presence-tags" id="presence-tags">
+          <span style="color:var(--text-faint);font-style:italic;font-size:.8rem">아무도 없습니다.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 단서 -->
+    <div class="section" id="sec-clues" style="display:none">
+      <div class="section-head"><span class="sh-icon">🔎</span> 발견된 단서</div>
+      <div class="section-body">
+        <ul class="clue-list" id="clue-list"></ul>
+      </div>
+    </div>
+
+    <!-- 아이템 -->
+    <div class="section" id="sec-items" style="display:none">
+      <div class="section-head"><span class="sh-icon">📦</span> 수상한 물건들</div>
+      <div class="section-body">
+        <div class="item-grid" id="item-grid"></div>
+      </div>
+    </div>
+
+    <!-- 이동 -->
+    <div class="section">
+      <div class="section-head"><span class="sh-icon">🚪</span> 이동 가능한 장소</div>
+      <div class="section-body">
+        <div class="move-grid" id="move-grid"></div>
+      </div>
+    </div>
+
+    <!-- 인벤토리 -->
+    <div class="section">
+      <div class="section-head"><span class="sh-icon">🎒</span> 팀 인벤토리</div>
+      <div class="section-body">
+        <div class="inv-grid" id="inv-grid">
+          <span class="inv-empty">아직 아무것도 없습니다.</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- 채팅 -->
+  <aside id="chat-panel">
+    <div class="chat-head">
+      <div class="chat-online-dot"></div>
+      <div class="chat-head-title" id="chat-title">팀 채팅</div>
+    </div>
+    <div class="chat-msgs" id="chat-msgs"></div>
+    <div class="chat-input-row">
+      <input id="chat-inp" type="text" placeholder="메시지…" maxlength="200"
+             onkeydown="if(event.key==='Enter')sendMsg()">
+      <button class="chat-send-btn" onclick="sendMsg()">전송</button>
+    </div>
+  </aside>
+
+</div>
+
+<!-- ▓▓▓▓▓  전투 오버레이  ▓▓▓▓▓ -->
+<div id="battle-overlay">
+  <div class="battle-modal">
+    <div class="battle-modal-head">
+      <div class="battle-modal-title" id="b-title">⚔️ 적대 세력 조우</div>
+    </div>
+    <div class="battle-modal-body">
+
+      <!-- 협상 단계 -->
+      <div id="phase-neg">
+        <div class="neg-team-row" id="neg-teams"></div>
+        <div class="neg-btns">
+          <button class="btn-fight" id="btn-fight" onclick="pickNeg('fight')">⚔️ 전투 개시</button>
+          <button class="btn-flee"  id="btn-flee"  onclick="pickNeg('flee')">🎲 주사위로 결정</button>
+        </div>
+        <div class="neg-waiting" id="neg-wait" style="display:none">
+          상대방 응답 대기 중…
+        </div>
+      </div>
+
+      <!-- 전투 단계 -->
+      <div id="phase-fight" style="display:none">
+        <div class="battle-hp-row" id="bhp-row"></div>
+        <div class="round-label">라운드 <span id="b-round">1</span> / 5</div>
+        <div class="spell-grid" id="spell-grid"></div>
+        <div class="neg-waiting" id="spell-wait" style="display:none">주문 선택 완료 — 상대 대기 중…</div>
+        <div class="battle-log" id="b-log"></div>
+      </div>
+
+      <!-- 결과 단계 -->
+      <div id="phase-result" style="display:none">
+        <div class="result-body">
+          <div class="result-icon" id="r-icon">⚔️</div>
+          <div class="result-title" id="r-title">결과</div>
+          <div class="result-desc"  id="r-desc"></div>
+          <button class="btn-continue" onclick="closeBattle()">계속 탐색하기</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 토스트 -->
+<div id="toasts"></div>
+
+<!-- ▓▓▓▓▓  스크립트  ▓▓▓▓▓ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getDatabase, ref, set, get, push, onValue, off,
+  update, remove, serverTimestamp, runTransaction
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { FIREBASE_CONFIG, FACTIONS, SPELLS, MATCHUP, ROOMS } from "./firebase-config.js";
+
+/* ── Firebase 초기화 ── */
+const app = initializeApp(FIREBASE_CONFIG);
+const db  = getDatabase(app);
+
+/* ── 전역 노출 ── */
+window.selFaction    = selFaction;
+window.enterMinistry = enterMinistry;
+window.sendMsg       = sendMsg;
+window.pickNeg       = pickNeg;
+window.closeBattle   = closeBattle;
+window.pickSpell     = pickSpell;
+window.doMove        = doMove;
+window.doClaim       = doClaim;
+
+/* ── 상태 ── */
+let ME = null;            // { pid, name, factionId, teamId }
+let teamSnap = null;
+let curRoom = "corridor_main";
+let roomUnsubs = [];
+let curBattleId = null;
+let spellPicked = false;
 let selectedFaction = null;
 
-function selectFaction(faction) {
-  selectedFaction = faction;
-  document.getElementById('factionOrder').classList.toggle('selected', faction === 'order');
-  document.getElementById('factionDeath').classList.toggle('selected', faction === 'death');
+/* ═══════════════════════════════════
+   JOIN
+═══════════════════════════════════ */
+function selFaction(id) {
+  selectedFaction = id;
+  document.getElementById('btn-order').className = 'faction-btn' + (id==='order' ? ' sel-order' : '');
+  document.getElementById('btn-death').className = 'faction-btn' + (id==='death' ? ' sel-death' : '');
 }
 
-function generateTeamCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  document.getElementById('teamCode').value = code;
-}
+async function enterMinistry() {
+  const name    = document.getElementById('inp-name').value.trim();
+  const rawCode = document.getElementById('inp-code').value.trim();
+  const errEl   = document.getElementById('join-err');
+  errEl.style.display = 'none';
 
-async function startGame() {
-  const name = document.getElementById('playerName').value.trim();
-  const teamCode = document.getElementById('teamCode').value.trim().toUpperCase();
-  const teamName = document.getElementById('teamName').value.trim() || teamCode;
-  const soloMode = document.getElementById('soloMode').checked;
-  const errEl = document.getElementById('errorMsg');
+  if (!selectedFaction)        { showErr(errEl,'진영을 선택해주세요.'); return; }
+  if (!name)                   { showErr(errEl,'마법사 이름을 입력해주세요.'); return; }
+  if (!rawCode || rawCode.length < 2) { showErr(errEl,'팀 암호를 2자 이상 입력해주세요.'); return; }
 
-  if (!name) { showError('이름을 입력해주세요.'); return; }
-  if (!selectedFaction) { showError('진영을 선택해주세요.'); return; }
-  if (!teamCode && !soloMode) { showError('팀 코드를 입력하거나 자동 생성해주세요.'); return; }
+  // 팀 ID = 암호 + 진영 — 같은 암호 & 같은 진영 = 같은 팀
+  const teamId = `team__${rawCode}__${selectedFaction}`;
+  const pid    = `p_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
 
-  const finalCode = soloMode ? 'solo_' + Date.now() : teamCode;
-
-  const playerId = 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-  const player = { id: playerId, name, faction: selectedFaction, teamCode: finalCode, teamName, soloMode };
-  localStorage.setItem('mof_player', JSON.stringify(player));
-
-  // Firebase에 플레이어 등록
-  try {
-    await db.ref(`players/${playerId}`).set({
-      ...player,
-      currentRoom: 'atrium',
-      online: true,
-      joinedAt: Date.now()
+  /* 팀 없으면 생성 */
+  const tSnap = await get(ref(db, `teams/${teamId}`));
+  if (!tSnap.exists()) {
+    await set(ref(db, `teams/${teamId}`), {
+      code: rawCode, faction: selectedFaction,
+      currentRoom: "corridor_main",
+      hp: 100, maxHp: 100, inventory: {}
     });
+  }
 
-    // 팀 생성 또는 참가
-    const teamRef = db.ref(`teams/${finalCode}`);
-    const snap = await teamRef.once('value');
-    if (!snap.exists()) {
-      await teamRef.set({
-        code: finalCode,
-        name: teamName,
-        faction: selectedFaction,
-        currentRoom: 'atrium',
-        members: { [playerId]: { name, id: playerId, online: true } },
-        inventory: {},
-        clues: {}
-      });
-    } else {
-      await teamRef.child(`members/${playerId}`).set({ name, id: playerId, online: true });
+  await set(ref(db, `players/${pid}`), {
+    name, factionId: selectedFaction, teamId, online: true, ts: serverTimestamp()
+  });
+  await set(ref(db, `teams/${teamId}/players/${pid}`), { name, online: true });
+
+  /* 방 DB 초기화 (최초 1회) */
+  await initRoomsDB();
+
+  /* 중앙 복도에 팀 등록 */
+  await set(ref(db, `rooms/corridor_main/teams/${teamId}`),
+    { faction: selectedFaction, at: serverTimestamp() });
+
+  ME = { pid, name, factionId: selectedFaction, teamId, code: rawCode };
+  localStorage.setItem('hp_me', JSON.stringify(ME));
+
+  startGame();
+}
+function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
+
+async function initRoomsDB() {
+  const s = await get(ref(db, 'rooms/corridor_main'));
+  if (s.exists()) return;
+  const upd = {};
+  ROOMS.forEach(r => {
+    upd[`rooms/${r.id}`] = {
+      id: r.id, locked: !!r.locked,
+      requiredKey: r.requiredKey || null,
+      claimedItems: {}, teams: {}
+    };
+  });
+  await update(ref(db), upd);
+}
+
+/* ═══════════════════════════════════
+   게임 시작
+═══════════════════════════════════ */
+function startGame() {
+  document.getElementById('join-page').style.display = 'none';
+  document.getElementById('game-page').classList.remove('hidden');
+  document.getElementById('game-page').style.display = 'grid';
+
+  const fac = FACTIONS[ME.factionId];
+  document.getElementById('tb-player').className = `tb-player ${ME.factionId}`;
+  document.getElementById('tb-player').textContent = `${fac.emoji} ${ME.name}`;
+  document.getElementById('tb-hp-bar').classList.add(ME.factionId);
+  document.getElementById('chat-title').textContent =
+    `${fac.emoji} ${ME.code}팀 채팅`;
+
+  /* 팀 구독 */
+  onValue(ref(db, `teams/${ME.teamId}`), snap => {
+    teamSnap = snap.val();
+    if (!teamSnap) return;
+    updateHP(teamSnap.hp ?? 100, teamSnap.maxHp ?? 100);
+    renderInv(teamSnap.inventory || {});
+    // 팀 리더가 이동하면 모두 따라감
+    const newRoom = teamSnap.currentRoom || 'corridor_main';
+    if (newRoom !== curRoom) { curRoom = newRoom; loadRoom(curRoom); }
+  });
+
+  /* 채팅 구독 */
+  onValue(ref(db, `chats/${ME.teamId}`), snap => {
+    const msgs = [];
+    snap.forEach(c => msgs.push({key:c.key,...c.val()}));
+    renderChat(msgs.slice(-80));
+  });
+
+  loadRoom(curRoom);
+}
+
+/* ═══════════════════════════════════
+   방 로드
+═══════════════════════════════════ */
+function loadRoom(rid) {
+  roomUnsubs.forEach(f => f());
+  roomUnsubs = [];
+  curRoom = rid;
+  const rd = ROOMS.find(r => r.id === rid);
+  if (!rd) return;
+
+  /* 정적 UI */
+  document.getElementById('room-icon').textContent = rd.icon;
+  document.getElementById('room-name').textContent = rd.name;
+  document.getElementById('room-desc').textContent = rd.desc;
+  document.getElementById('tb-path').innerHTML = `복도 / <em>${rd.name}</em>`;
+
+  /* 단서 */
+  if (rd.clues?.length) {
+    document.getElementById('sec-clues').style.display = '';
+    document.getElementById('clue-list').innerHTML =
+      rd.clues.map(c => `<li>${c}</li>`).join('');
+  } else { document.getElementById('sec-clues').style.display = 'none'; }
+
+  /* 이동 버튼 */
+  renderMoves(rd);
+
+  /* 실시간 방 상태 */
+  const rRef = ref(db, `rooms/${rid}`);
+  const unsub = onValue(rRef, snap => {
+    const rs = snap.val() || {};
+    renderItems(rd, rs.claimedItems || {});
+    renderPresence(rs.teams || {});
+    /* 전투 감지 */
+    if (rs.activeBattle && rs.activeBattle !== curBattleId) {
+      curBattleId = rs.activeBattle;
+      watchBattle(curBattleId);
     }
+  });
+  roomUnsubs.push(() => off(rRef));
+}
 
-    // presence 설정 (오프라인 감지)
-    const connRef = db.ref('.info/connected');
-    connRef.on('value', (snap) => {
-      if (snap.val()) {
-        db.ref(`players/${playerId}/online`).onDisconnect().set(false);
-        db.ref(`teams/${finalCode}/members/${playerId}/online`).onDisconnect().set(false);
-      }
-    });
+/* ═══════════════════════════════════
+   이동
+═══════════════════════════════════ */
+function renderMoves(rd) {
+  const inv  = teamSnap?.inventory || {};
+  const grid = document.getElementById('move-grid');
+  grid.innerHTML = (rd.connections || []).map(cid => {
+    const cr = ROOMS.find(r => r.id === cid);
+    if (!cr) return '';
+    const locked = cr.locked && !hasKey(cr.requiredKey, inv);
+    return `<button class="move-tile${locked?' locked':''}" onclick="doMove('${cid}',${locked})">
+      <span class="move-tile-icon">${cr.icon}</span>
+      <span class="move-tile-name">${cr.name}</span>
+      ${locked ? `<span class="move-tile-lock">🔒</span>` : ''}
+    </button>`;
+  }).join('');
+}
 
-    window.location.href = `lobby.html`;
-  } catch (e) {
-    console.error(e);
-    showError('접속 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+window.doMove = async function(rid, locked) {
+  if (locked) { toast('열쇠가 필요합니다.','err'); return; }
+  const old = teamSnap?.currentRoom || curRoom;
+  if (old !== 'corridor_main' && old !== rid) {
+    await remove(ref(db, `rooms/${old}/teams/${ME.teamId}`));
+  }
+  await update(ref(db, `teams/${ME.teamId}`), { currentRoom: rid });
+  await set(ref(db, `rooms/${rid}/teams/${ME.teamId}`),
+    { faction: ME.factionId, at: serverTimestamp() });
+};
+
+function hasKey(req, inv) {
+  if (!req) return true;
+  if (req.startsWith('any:'))
+    return req.slice(4).split(',').some(k => inv[k.trim()]);
+  return !!inv[req];
+}
+
+/* ═══════════════════════════════════
+   탐색자 표시
+═══════════════════════════════════ */
+function renderPresence(teams) {
+  const el = document.getElementById('presence-tags');
+  const entries = Object.entries(teams);
+  if (!entries.length) {
+    el.innerHTML = '<span style="color:var(--text-faint);font-style:italic;font-size:.8rem">아무도 없습니다.</span>';
+    return;
+  }
+  el.innerHTML = entries.map(([tid, td]) => {
+    const isMine = tid === ME.teamId;
+    const lbl = tid.split('__')[1] || tid;
+    return `<span class="ptag ${td.faction}${isMine?' mine':''}">
+      ${td.faction==='order'?'🔥':'💀'} ${lbl}${isMine?' ✦':''}
+    </span>`;
+  }).join('');
+
+  /* 다른 진영 감지 → 전투 트리거 */
+  const enemies = entries.filter(([tid,td]) => tid!==ME.teamId && td.faction!==ME.factionId);
+  if (enemies.length) maybeTriggerBattle(enemies[0][0]);
+}
+
+/* ═══════════════════════════════════
+   아이템
+═══════════════════════════════════ */
+function renderItems(rd, claimed) {
+  if (!rd.items?.length) { document.getElementById('sec-items').style.display='none'; return; }
+  document.getElementById('sec-items').style.display = '';
+  document.getElementById('item-grid').innerHTML = rd.items.map(it => {
+    const isClaimed = !!claimed[it.id];
+    return `<div class="item-tile${isClaimed?' claimed':''}${it.isKey?' is-key':''}"
+                 onclick="doClaim('${it.id}')">
+      <span class="item-tile-icon">${it.icon}</span>
+      <div class="item-tile-name">${it.name}</div>
+      <div class="item-tile-desc">${it.desc}</div>
+      ${isClaimed ? `<div class="item-tile-claimed-badge">획득됨</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+window.doClaim = async function(itemId) {
+  const rd = ROOMS.find(r => r.id === curRoom);
+  const it = rd?.items?.find(i => i.id === itemId);
+  if (!it) return;
+
+  let ok = false;
+  await runTransaction(ref(db, `rooms/${curRoom}/claimedItems/${itemId}`), cur => {
+    if (cur !== null) return;
+    ok = true;
+    return { teamId: ME.teamId, by: ME.name, at: Date.now() };
+  });
+  if (!ok) { toast('이미 다른 팀이 획득했습니다.','err'); return; }
+  await set(ref(db, `teams/${ME.teamId}/inventory/${itemId}`),
+    { ...it, foundAt: Date.now() });
+  toast(`✦ ${it.name} 획득!`, 'ok');
+};
+
+/* ═══════════════════════════════════
+   인벤토리 & HP
+═══════════════════════════════════ */
+function renderInv(inv) {
+  const grid = document.getElementById('inv-grid');
+  const items = Object.values(inv);
+  if (!items.length) { grid.innerHTML = '<span class="inv-empty">아직 아무것도 없습니다.</span>'; }
+  else grid.innerHTML = items.map(it =>
+    `<span class="inv-chip${it.isKey?' is-key':''}">
+      <span class="ic-ico">${it.icon||'📦'}</span>${it.name}
+    </span>`
+  ).join('');
+  /* 이동 버튼 재렌더 (열쇠 업데이트) */
+  const rd = ROOMS.find(r => r.id === curRoom);
+  if (rd) renderMoves(rd);
+}
+
+function updateHP(hp, max) {
+  document.getElementById('tb-hp-bar').style.width = Math.round(hp/max*100)+'%';
+  document.getElementById('tb-hp-num').textContent = hp;
+}
+
+/* ═══════════════════════════════════
+   채팅
+═══════════════════════════════════ */
+function renderChat(msgs) {
+  const box  = document.getElementById('chat-msgs');
+  const atBt = box.scrollHeight - box.clientHeight <= box.scrollTop + 50;
+  box.innerHTML = msgs.map(m => {
+    const t = m.ts ? new Date(m.ts).toLocaleTimeString('ko',{hour:'2-digit',minute:'2-digit'}) : '';
+    return `<div class="chat-msg">
+      <div class="chat-msg-meta">
+        <span class="chat-msg-name ${m.fac||ME.factionId}">${esc(m.name||'?')}</span>
+        <span class="chat-msg-time">${t}</span>
+      </div>
+      <div class="chat-msg-body">${esc(m.text||'')}</div>
+    </div>`;
+  }).join('');
+  if (atBt) box.scrollTop = box.scrollHeight;
+}
+
+function sendMsg() {
+  const inp = document.getElementById('chat-inp');
+  const txt = inp.value.trim();
+  if (!txt) return;
+  push(ref(db, `chats/${ME.teamId}`), {
+    name: ME.name, fac: ME.factionId, text: txt, ts: Date.now()
+  });
+  inp.value = '';
+}
+
+/* ═══════════════════════════════════
+   전투 시스템
+═══════════════════════════════════ */
+async function maybeTriggerBattle(enemyTeamId) {
+  const rSnap = await get(ref(db, `rooms/${curRoom}/activeBattle`));
+  if (rSnap.val()) return;
+  // 두 팀 중 사전순으로 작은 쪽이 전투 생성 (중복 방지)
+  if (ME.teamId > enemyTeamId) return;
+
+  const bid = `btl_${curRoom}_${Date.now()}`;
+  const t1hp = teamSnap?.hp ?? 100;
+  const t2Snap = await get(ref(db, `teams/${enemyTeamId}/hp`));
+  const t2hp = t2Snap.val() ?? 100;
+
+  await set(ref(db, `battles/${bid}`), {
+    room: curRoom, t1: ME.teamId, t2: enemyTeamId,
+    status: 'pending', round: 0, t1hp, t2hp
+  });
+  await update(ref(db, `rooms/${curRoom}`), { activeBattle: bid });
+}
+
+function watchBattle(bid) {
+  const bRef = ref(db, `battles/${bid}`);
+  const unsub = onValue(bRef, snap => {
+    const b = snap.val();
+    if (!b) return;
+    if      (b.status==='pending')  showNeg(b, bid);
+    else if (b.status==='fighting') showFight(b, bid);
+    else if (b.status==='resolved'||b.status==='fled') showResult(b);
+  });
+  roomUnsubs.push(() => off(bRef));
+}
+
+/* 협상 */
+function showNeg(b, bid) {
+  openOverlay();
+  show('phase-neg'); hide('phase-fight'); hide('phase-result');
+  document.getElementById('b-title').textContent = '⚔️ 적대 세력 조우!';
+  const n1 = label(b.t1), n2 = label(b.t2);
+  const f1 = b.t1.includes('__order__') ? 'order' : 'death';
+  const f2 = b.t2.includes('__order__') ? 'order' : 'death';
+  document.getElementById('neg-teams').innerHTML = `
+    <div class="neg-team">
+      <div class="neg-team-icon">${FACTIONS[f1].emoji}</div>
+      <div class="neg-team-name ${f1}">${n1}</div>
+    </div>
+    <div class="neg-vs">VS</div>
+    <div class="neg-team">
+      <div class="neg-team-icon">${FACTIONS[f2].emoji}</div>
+      <div class="neg-team-name ${f2}">${n2}</div>
+    </div>`;
+  document.getElementById('neg-wait').style.display = 'none';
+  document.getElementById('btn-fight').disabled = false;
+  document.getElementById('btn-flee').disabled  = false;
+  window._bid = bid; window._battle = b;
+}
+
+window.pickNeg = async function(choice) {
+  const bid = window._bid;
+  document.getElementById('btn-fight').disabled = true;
+  document.getElementById('btn-flee').disabled  = true;
+  document.getElementById('neg-wait').style.display = '';
+  await update(ref(db, `battles/${bid}`), { [`neg_${ME.teamId}`]: choice });
+
+  const snap = await get(ref(db, `battles/${bid}`));
+  const b = snap.val();
+  const c1 = b[`neg_${b.t1}`], c2 = b[`neg_${b.t2}`];
+  if (c1 && c2) resolveNeg(bid, b, c1, c2);
+};
+
+async function resolveNeg(bid, b, c1, c2) {
+  if (c1==='flee' || c2==='flee') {
+    const d1 = Math.ceil(Math.random()*6), d2 = Math.ceil(Math.random()*6);
+    const loser = d1 >= d2 ? b.t2 : b.t1;
+    await update(ref(db, `battles/${bid}`), { status:'fled', fleeLoser:loser, d1, d2 });
+    await remove(ref(db, `rooms/${b.room}/activeBattle`));
+    if (loser === ME.teamId) await returnLobby();
+  } else {
+    await update(ref(db, `battles/${bid}`), { status:'fighting', round:1 });
   }
 }
 
-function showError(msg) {
-  const el = document.getElementById('errorMsg');
-  el.textContent = msg;
-  el.style.display = 'block';
-  setTimeout(() => el.style.display = 'none', 3000);
+/* 전투 */
+function showFight(b, bid) {
+  openOverlay();
+  hide('phase-neg'); show('phase-fight'); hide('phase-result');
+  document.getElementById('b-title').textContent = '⚡ 마법 전투!';
+  document.getElementById('b-round').textContent = b.round;
+
+  const f1 = b.t1.includes('__order__') ? 'order' : 'death';
+  const f2 = b.t2.includes('__order__') ? 'order' : 'death';
+  document.getElementById('bhp-row').innerHTML = `
+    <div class="bhp-team">
+      <div class="bhp-name ${f1}">${FACTIONS[f1].emoji} ${label(b.t1)}</div>
+      <div class="bhp-bar-bg"><div class="bhp-bar ${f1}" style="width:${b.t1hp}%"></div></div>
+      <div class="bhp-num">${b.t1hp} HP</div>
+    </div>
+    <div class="bhp-vs">⚡</div>
+    <div class="bhp-team">
+      <div class="bhp-name ${f2}">${FACTIONS[f2].emoji} ${label(b.t2)}</div>
+      <div class="bhp-bar-bg"><div class="bhp-bar ${f2}" style="width:${b.t2hp}%"></div></div>
+      <div class="bhp-num">${b.t2hp} HP</div>
+    </div>`;
+
+  const mySpell = b[`sp_${ME.teamId}_${b.round}`];
+  spellPicked = !!mySpell;
+  document.getElementById('spell-wait').style.display = spellPicked ? '' : 'none';
+  document.getElementById('spell-grid').innerHTML = SPELLS.map(s =>
+    `<button class="spell-tile${mySpell===s.id?' chosen':''}"
+             ${spellPicked?'disabled':''} onclick="pickSpell('${s.id}')">
+      <span class="st-emo">${s.emoji}</span>
+      <span class="st-name">${s.name}</span>
+      <span class="st-type">${s.desc}</span>
+    </button>`
+  ).join('');
+  window._bid = bid; window._battle = b;
 }
 
-// URL에 팀코드 파라미터가 있으면 자동 입력
-const urlParams = new URLSearchParams(window.location.search);
-const urlTeamCode = urlParams.get('team');
-if (urlTeamCode) {
-  document.getElementById('teamCode').value = urlTeamCode.toUpperCase();
+window.pickSpell = async function(spellId) {
+  if (spellPicked) return;
+  spellPicked = true;
+  const bid = window._bid; const b = window._battle;
+  document.querySelectorAll('.spell-tile').forEach(el => el.disabled = true);
+  document.getElementById('spell-wait').style.display = '';
+  await update(ref(db, `battles/${bid}`), { [`sp_${ME.teamId}_${b.round}`]: spellId });
+
+  const snap = await get(ref(db, `battles/${bid}`));
+  const bv = snap.val();
+  const s1 = bv[`sp_${bv.t1}_${bv.round}`], s2 = bv[`sp_${bv.t2}_${bv.round}`];
+  if (s1 && s2) resolveRound(bid, bv, s1, s2);
+};
+
+async function resolveRound(bid, b, s1id, s2id) {
+  const s1 = SPELLS.find(s=>s.id===s1id), s2 = SPELLS.find(s=>s.id===s2id);
+  const out = MATCHUP[s1.type]?.[s2.type] || 'draw';
+  let hp1 = b.t1hp, hp2 = b.t2hp;
+  if (out==='win')  hp2 = Math.max(0, hp2 - s1.power*10);
+  if (out==='lose') hp1 = Math.max(0, hp1 - s2.power*10);
+  if (out==='draw') { hp1=Math.max(0,hp1-10); hp2=Math.max(0,hp2-10); }
+
+  const log = `R${b.round}: ${s1.name} vs ${s2.name} → ${out==='win'?label(b.t1)+' 승':out==='lose'?label(b.t2)+' 승':'무승부'}`;
+  appendLog(log, out);
+  spellPicked = false;
+
+  const next = b.round + 1;
+  const done = hp1<=0 || hp2<=0 || next>5;
+  const winner = hp1>hp2 ? b.t1 : hp2>hp1 ? b.t2 : 'draw';
+  await update(ref(db, `battles/${bid}`), {
+    t1hp: hp1, t2hp: hp2,
+    round: done ? b.round : next,
+    status: done ? 'resolved' : 'fighting',
+    ...(done ? {winner} : {})
+  });
+  if (done) {
+    await remove(ref(db, `rooms/${b.room}/activeBattle`));
+    const hp = ME.teamId===b.t1 ? hp1 : hp2;
+    await update(ref(db, `teams/${ME.teamId}`), { hp });
+    if (winner !== 'draw' && winner !== ME.teamId) await returnLobby();
+  }
+}
+
+function appendLog(msg, out) {
+  const log = document.getElementById('b-log');
+  const cls = out==='win'?'blog-win':out==='lose'?'blog-lose':'blog-draw';
+  log.innerHTML += `<div class="${cls}">${msg}</div>`;
+  log.scrollTop = log.scrollHeight;
+}
+
+/* 결과 */
+function showResult(b) {
+  hide('phase-neg'); hide('phase-fight'); show('phase-result');
+  if (b.status==='fled') {
+    const loser = label(b.fleeLoser||'??');
+    document.getElementById('r-icon').textContent = '🎲';
+    document.getElementById('r-title').textContent = '주사위 결정!';
+    document.getElementById('r-desc').textContent =
+      `주사위: 팀1 [${b.d1}] vs 팀2 [${b.d2}] — ${loser}팀이 복도로 물러났습니다.`;
+  } else {
+    const w = b.winner;
+    const won = w==='draw' ? false : w===ME.teamId;
+    document.getElementById('r-icon').textContent = w==='draw'?'🤝':won?'🏆':'💀';
+    document.getElementById('r-title').textContent =
+      w==='draw'?'무승부':won?'승리!':'패배…';
+    document.getElementById('r-desc').textContent =
+      w==='draw' ? '서로 물러났습니다. 탐색을 계속하세요.' :
+      won        ? '적을 물리치고 이 방에 머물 수 있습니다.' :
+                   '패배하여 중앙 복도로 돌아갑니다.';
+  }
+}
+
+async function returnLobby() {
+  const old = curRoom;
+  await remove(ref(db, `rooms/${old}/teams/${ME.teamId}`));
+  await update(ref(db, `teams/${ME.teamId}`), { currentRoom:'corridor_main' });
+  await set(ref(db, `rooms/corridor_main/teams/${ME.teamId}`),
+    { faction: ME.factionId, at: serverTimestamp() });
+}
+
+window.closeBattle = function() {
+  document.getElementById('battle-overlay').classList.remove('open');
+  curBattleId = null;
+};
+function openOverlay() {
+  document.getElementById('battle-overlay').classList.add('open');
+}
+
+/* ═══════════════════════════════════
+   유틸
+═══════════════════════════════════ */
+function label(tid) { return (tid||'??').split('__')[1] || tid; }
+function esc(s)     { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function show(id)   { document.getElementById(id).style.display=''; }
+function hide(id)   { document.getElementById(id).style.display='none'; }
+
+function toast(msg, type='info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>el.remove(), 3200);
+}
+
+/* ═══════════════════════════════════
+   재접속 처리
+═══════════════════════════════════ */
+const saved = localStorage.getItem('hp_me');
+if (saved) {
+  try {
+    ME = JSON.parse(saved);
+    selectedFaction = ME.factionId;
+    startGame();
+  } catch { localStorage.removeItem('hp_me'); }
 }
 </script>
 </body>
